@@ -1,3 +1,8 @@
+# OGE exercise 6 generator. I have made a decision to prepare the correct answer to exercise. The answer is in a variable with name "res"
+# Решил сразу подготовить почву для проверки правильности решений.
+# Для этого я добавил переменную res которая содержит в себе правильный ответ на любую сгенерированную задачу.
+
+
 import random
 import operator
 from functools import reduce
