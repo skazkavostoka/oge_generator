@@ -1,4 +1,4 @@
 .env
-my_database
+my_database.db
 __pycache__/
 
