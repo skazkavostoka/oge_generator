@@ -9,7 +9,7 @@ from keyboards.reply import parent_kbrd, cmd_start
 from models import User, ParentChild, Lesson
 from database import *
 
-from venv.telegram_bot_feedback.keyboards.inline import create_students_inline_kb
+from keyboards.inline import create_students_inline_kb
 
 parent_router = Router()
 
