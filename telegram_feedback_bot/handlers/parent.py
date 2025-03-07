@@ -1,12 +1,15 @@
 import os
 
 from aiogram import Router, types, F
-from aiogram.types import Message
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, or_f, StateFilter
 
 from keyboards.reply import parent_kbrd, cmd_start
 from models import User, ParentChild, Lesson
 from database import *
+
+from venv.telegram_bot_feedback.keyboards.inline import create_students_inline_kb
 
 parent_router = Router()
 
@@ -55,7 +58,7 @@ async def export_lessons_handler(message: types.Message):
 
 
 @parent_router.message(or_f(Command('last_lessons'), F.text == 'Последние результаты'))
-async def get_last_lessons(message: types.Message):
+async def get_last_lessons(message: types.Message, state: FSMContext):
     parent_id = message.from_user.id
 
     students_ids = await get_children_to_parent(parent_id)
@@ -64,19 +67,62 @@ async def get_last_lessons(message: types.Message):
         await message.answer('Вы не закреплены ни за одним учеником')
         return
 
-    lessons_by_students = {student_id: await get_lessons(student_id) for student_id in students_ids}
+    await state.update_data({'students': students_ids})
+    kb = create_students_inline_kb(students, prefix='parent_lessons')
 
-    if not any(lessons_by_students.values()):
-        await message.answer('Нет данных о последних занятиях ваших учеников')
+    await message.answer('Выберите учеников', reply_markup=kb)
+
+
+@parent_router.callback_query(F.data.startswith('parent_page'))
+async def parent_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'родитель'
+        await callback.answer('Недостаточно прав', show_alert=True)
         return
 
-    response = ''
-    for student_id, lessons in lessons_by_students.items():
-        if lessons:
-            response += f"\n👦 Ученик {student_id}:\n"
-            for lesson in lessons:
-                response += (f"📅 {lesson.date}: "
-                             f"ДЗ - {lesson.homework_result}, "
-                             f"Урок - {lesson.classwork_result}, "
-                             f"Тест - {lesson.test_result}\n")
+    _, page_str = callback.data.split(:)
+    page = int(page_str)
+
+    data = await state.get_data()
+
+    students = data.get('student', [])
+
+    kb = create_students_inline_kb(students, page=page)
+    await callback.message.edit_reply_markup(kb)
+    await callback.answer()
+
+@parent_router.callback_query(F.data.startswith('parent_lessons'))
+async def parent_lessons(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'родитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    lessons = await get_lessons(student_id)
+    if not lessons:
+        await callback.answer(f'У ученика {student_id} нет занятий')
+    else:
+        text = ''
+        for lesson in lessons:
+            text += (f"\n📅 {lesson.date}: "
+                     f"ДЗ - {lesson.hw_res}, "
+                     f"Урок - {lesson.cw_res}, "
+                     f"Тест - {lesson.test_res}")
+            await callback.message.answer(f"Последние занятия ученика {student_id}:{text}", reply_markup=cmd_start)
+
+        await callback.answer()
+
+
+    # response = ''
+    # for student_id, lessons in lessons_by_students.items():
+    #     if lessons:
+    #         response += f"\n👦 Ученик {student_id}:\n"
+    #         for lesson in lessons:
+    #             response += (f"📅 {lesson.date}: "
+    #                          f"ДЗ - {lesson.homework_result}, "
+    #                          f"Урок - {lesson.classwork_result}, "
+    #                          f"Тест - {lesson.test_result}\n")
 
