@@ -76,7 +76,7 @@ async def get_last_lessons(message: types.Message, state: FSMContext):
 @parent_router.callback_query(F.data.startswith('parent_page'))
 async def parent_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
-    if not user or user.role != 'родитель'
+    if not user or user.role != 'родитель':
         await callback.answer('Недостаточно прав', show_alert=True)
         return
 
