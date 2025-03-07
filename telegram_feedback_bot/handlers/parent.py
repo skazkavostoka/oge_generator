@@ -80,7 +80,7 @@ async def parent_page(callback: CallbackQuery, state: FSMContext):
         await callback.answer('Недостаточно прав', show_alert=True)
         return
 
-    _, page_str = callback.data.split(:)
+    _, page_str = callback.data.split(':')
     page = int(page_str)
 
     data = await state.get_data()
