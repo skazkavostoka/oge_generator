@@ -111,7 +111,7 @@ async def parent_lessons(callback: CallbackQuery, state: FSMContext):
                      f"ДЗ - {lesson.hw_res}, "
                      f"Урок - {lesson.cw_res}, "
                      f"Тест - {lesson.test_res}")
-            await callback.message.answer(f"Последние занятия ученика {student_id}:{text}", reply_markup=cmd_start)
+        await callback.message.answer(f"Последние занятия ученика {student_id}:{text}", reply_markup=cmd_start)
 
         await callback.answer()
 
