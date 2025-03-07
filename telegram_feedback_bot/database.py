@@ -67,8 +67,11 @@ async def add_parent_child(parent_id: int, child_id: int):
 
 async def get_children_to_parent(parent_id: int):
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).join(ParentChild,
-                        User.telegram_id == parent_id).where(ParentChild.parent_id == parent_id))
+        result = await session.execute(
+            select(User)  # Выбираем учеников
+            .join(ParentChild, User.telegram_id == ParentChild.child_id)  # Соединяем таблицы по ID ученика
+            .where(ParentChild.parent_id == parent_id)  # Фильтруем по родителю
+        )
         return result.scalars().all()
 
 
