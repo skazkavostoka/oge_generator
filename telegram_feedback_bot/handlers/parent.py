@@ -68,7 +68,7 @@ async def get_last_lessons(message: types.Message, state: FSMContext):
         return
 
     await state.update_data({'students': students_ids})
-    kb = create_students_inline_kb(students, prefix='parent_lessons')
+    kb = create_students_inline_kb(students_ids, prefix='parent_lessons')
 
     await message.answer('Выберите учеников', reply_markup=kb)
 
