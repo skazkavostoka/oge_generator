@@ -114,15 +114,3 @@ async def parent_lessons(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer(f"Последние занятия ученика {student_id}:{text}", reply_markup=cmd_start)
 
         await callback.answer()
-
-
-    # response = ''
-    # for student_id, lessons in lessons_by_students.items():
-    #     if lessons:
-    #         response += f"\n👦 Ученик {student_id}:\n"
-    #         for lesson in lessons:
-    #             response += (f"📅 {lesson.date}: "
-    #                          f"ДЗ - {lesson.homework_result}, "
-    #                          f"Урок - {lesson.classwork_result}, "
-    #                          f"Тест - {lesson.test_result}\n")
-

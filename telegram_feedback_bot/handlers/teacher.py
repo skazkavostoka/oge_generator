@@ -7,13 +7,31 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command, or_f, StateFilter
 
 from database import *
-from keyboards.reply import teacher_kbrd, cmd_start, rmv
+from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
-from database import add_parent_child, remove_parent_child, get_user
+from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students
 
-from database import get_all_students
+from oge_generator.telegram_feedback_bot.keyboards.reply import cmd_start
 
 teacher_router = Router()
+
+
+@teacher_router.message(F.text == 'Связи')
+async def connects(message: Message):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
+        return
+    await message.answer('Выберите действие: ', reply_markup=teacher_2_kbrd)
+
+
+@teacher_router.message(F.text == 'Уроки')
+async def lessons(message: Message):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
+        return
+    await message.answer('Выберите действие: ', reply_markup=teacher_3_kbrd)
 
 
 @teacher_router.message(or_f(Command("set_role"), F.text == 'Назначить роли'))
@@ -23,10 +41,73 @@ async def set_role_handler(message: types.Message, state: FSMContext):
         await message.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
         return
 
-    await message.answer("Введите ID пользователя и новую роль через пробел (пример: `123456789 родитель`)", reply_markup=rmv)
+    users_ids = await get_all_users()
+    if not users_ids:
+        await message.answer('Что-то не так с работой программы', reply_markup=cmd_start)
+        return
 
-    # Устанавливаем состояние ожидания ввода ID и новой роли
-    await state.set_state("waiting_for_role_change")
+    await state.update_data({'users': users_ids})
+    kb = create_students_inline_kb(students_ids, prefix='users_choose')
+
+    await message.answer('Выберите пользователя которому хотите присвоить новую роль', reply_markup=kb)
+
+@teacher_router.callback_query(F.data.startswith('users_page'))
+async def users_page(callback: CallbackQuery, state: FSMContext)
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != "учитель":
+        await callback.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+
+    users = data.get('user', [])
+
+    kb = create_students_inline_kb(users, page=page)
+    await callback.message.edit_reply_markup(kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('users_choose'))
+async def users_choose(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != "учитель":
+        await callback.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
+        return
+
+    _, user_id_str = callback.data.split(':')
+    user_id = int(user_id_str)
+
+    await state.update_data({'user_id': user_id})
+    await callback.message.answer('Введите новую роль для пользователя(ученик, родитель): ')
+    await state.set_state('waiting_for_role_change')
+    await callback.answer()
+
+@teacher_router.message(F.text, StateFilter('waiting_for_role_change'))
+async def change_user_role(message: Message, state: FSMContext):
+    new_role = message.text.strip().lower()
+    valid_roles = ['ученик', 'родитель']
+
+    if new_role not in valid_roles:
+        await message.answer('Введенная роль не принадлежит к существующим', reply_markup=cmd_start)
+        return
+
+    data = await state.get_data()
+    user_id = data.get('user_id')
+
+    if not user_id:
+        await message.answer('Ошибка: не удалось идентифицировать пользователя!', reply_markup=cmd_start)
+        return
+
+    sucess = await set_user_role(user_id, new_role)
+    if sucess:
+        await message.answer(f'Роль пользователя изменена на {new_role}', reply_markup=cmd_start)
+    else:
+        await message.answer('Возникли проблемы', reply_markup=cmd_start)
+
+    await state.clear()
+
 
 
 @teacher_router.message(F.text, StateFilter("waiting_for_role_change"))
@@ -34,7 +115,7 @@ async def process_role_change(message: types.Message, state: FSMContext):
     """Обрабатывает изменение роли"""
 
     try:
-        user_id, new_role = message.text.split(maxsplit=1)
+        new_role = message.text
         user_id = int(user_id)
     except ValueError:
         await message.answer("❌ Ошибка ввода. Введите ID пользователя и новую роль через пробел.",

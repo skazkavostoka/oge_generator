@@ -3,7 +3,7 @@ from aiogram.filters import Command, or_f
 from database import get_user, add_user
 from aiogram.types import Message
 
-from keyboards.reply import parent_kbrd, teacher_kbrd, student_kbrd
+from keyboards.reply import *
 
 router = Router()
 
@@ -14,7 +14,7 @@ async def start_handler(message: types.Message):
     user = await get_user(message.from_user.id)
     if user:
         if user.role == 'учитель':
-            await message.answer(f'Привет, {user.full_name}\nЧто нужно сделать?', reply_markup=teacher_kbrd)
+            await message.answer(f'Привет, {user.full_name}\nЧто нужно сделать?', reply_markup=teacher_1_kbrd)
         elif user.role == 'родитель':
             await message.answer(f'Привет, {user.full_name}\nЧто нужно сделать?', reply_markup=parent_kbrd)
         else:
