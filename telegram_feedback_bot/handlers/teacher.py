@@ -46,7 +46,7 @@ async def set_role_handler(message: types.Message, state: FSMContext):
         return
 
     await state.update_data({'users': users_ids})
-    kb = create_students_inline_kb(user_ids, prefix='users_choose')
+    kb = create_students_inline_kb(users_ids, prefix='users_choose')
 
     await message.answer('Выберите пользователя которому хотите присвоить новую роль', reply_markup=kb)
 
