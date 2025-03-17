@@ -50,7 +50,7 @@ async def set_role_handler(message: types.Message, state: FSMContext):
 
     await message.answer('Выберите пользователя которому хотите присвоить новую роль', reply_markup=kb)
 
-@teacher_router.callback_query(F.data.startswith('users_page'))
+@teacher_router.callback_query(F.data.startswith('users_choose_page'))
 async def users_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != "учитель":
