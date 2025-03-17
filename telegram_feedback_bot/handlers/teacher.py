@@ -572,7 +572,7 @@ async def export_lessons(callback: CallbackQuery, state: FSMContext):
     success = await export_lessons_to_excel(student_id)
 
     if success:
-        await callback.answer_document(types.FSInputFile(success), caption='Вот информация о занятиях ваших детей',
+        await callback.message.answer_document(types.FSInputFile(success), caption='Вот информация о занятиях ваших детей',
                                       reply_markup=cmd_start)
         os.remove(success)
     else:
