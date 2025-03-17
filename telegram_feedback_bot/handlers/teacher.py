@@ -1,6 +1,3 @@
-from sys import prefix
-from tracemalloc import Statistic
-
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -11,8 +8,9 @@ from database import *
 from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
-from database import show_child_parents, get_children_to_parent
+from database import show_child_parents, get_children_to_parent, export_lessons_to_excel
 
+import os
 
 teacher_router = Router()
 
@@ -502,7 +500,7 @@ async def show_parent_child_page(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     students = data.get('students', [])
 
-    kb = create_students_inline_kb(students, prefix='show_parent_child')
+    kb = create_students_inline_kb(students, page=page, prefix='show_parent_child')
     await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
@@ -525,4 +523,58 @@ async def show_parent_child(callback: CallbackQuery, state: FSMContext):
 
     parent_list = '\n'.join([f'{parent.telegram_id}: {parent.full_name}' for parent in success])
     await callback.message.answer(parent_list, reply_markup=cmd_start)
+    await state.clear()
+
+
+@teacher_router.message(F.text == 'Получить выгрузку')
+async def export_lessons(message: types.Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer('Недостаточно прав', show_alert=True)
+        return
+
+    students = await get_all_students()
+    if not students:
+        await message.answer('Нет учеников или что-то не так с программой', reply_markup=cmd_start)
+        return
+
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='export_lessons')
+    await message.answer('Выберите студента, для которого необходимо сформировать выгрузку', reply_markup=kb)
+
+
+@teacher_router.callback_query(F.data.startswith('export_lessons_page:'))
+async def export_lessons_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+    kb = create_students_inline_kb(students, page=page, prefix='export_lessons')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('export_lessons:'))
+async def export_lessons(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    success = await export_lessons_to_excel(student_id)
+
+    if success:
+        await callback.answer_document(types.FSInputFile(success), caption='Вот информация о занятиях ваших детей',
+                                      reply_markup=cmd_start)
+    else:
+        await callback.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
+    os.remove(success)
     await state.clear()

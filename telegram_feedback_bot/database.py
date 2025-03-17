@@ -138,35 +138,47 @@ async def delete_lesson(student_id: int, lesson_date: date):
         logging.warning(f'Не получилось удалить занятие ученика {student_id} от {lesson_date}')
 
 
-async def export_lessons_to_excel(student_id: int, parent_id: int):
+async def export_lessons_to_excel(student_id: int):
     async with AsyncSessionLocal() as session:
-       students_ids = session.query(ParentChild.child_id).filter(ParentChild.parent_id == parent_id).all()
-       students_ids = [s[0] for s in students_ids]
+        query = (
+            session.query(
+                Lesson.student_id,
+                User.full_name,
+                Lesson.date,
+                Lesson.hw_res,
+                Lesson.cw_res,
+                Lesson.test_res
+            )
+            .join(User, Lesson.student_id == User.id)
+            .filter(Lesson.student_id == student_id)
+            .order_by(Lesson.date)
+        )
+    lessons = query.all()
 
-       if not students_ids:
-           return None
+    if not lessons:
+        return None
 
-       query = session.query(
-           Lesson.student_id,
-           User.full_name,
-           Lesson.date,
-           Lesson.hw_res,
-           Lesson.cw_res,
-           Lesson.test_res,).join(User,
-                Lesson.student_id == User.id).filter(Lesson.student_id.in_(students_ids).order_by(Lesson.date))
-       lessons = query.all()
+    # Создаем DataFrame
+    df = pd.DataFrame(
+        lessons,
+        columns=[
+            "ID ученика",
+            "ФИО ученика",
+            "Дата",
+            "Результат ДЗ",
+            "Работа на занятии",
+            "Результат теста",
+        ],
+    )
 
-       if not lessons:
-           return None
+    # Формируем имя файла
+    filename = f"lessons_student_{student_id}_{date.today()}.xlsx"
+    filepath = f"/mnt/data/{filename}"
 
-       df = pd.DataFrame(lessons, columns=['ID ученика', 'ФИО ученика',
-                                    'Дата', 'Результат ДЗ', 'Работа на занятии', 'Результат теста'])
-       filename = f'lessons_parent_{parent_id}_{date.today()}.xlsx'
-       filepath = f'mnt/data/{filename}'
+    # Сохраняем DataFrame в Excel
+    df.to_excel(filepath, index=False)
 
-       df.to_excel(filepath, index=False)
-
-       return filepath
+    return filepath
 
 
 async def get_all_students():
