@@ -175,7 +175,7 @@ async def export_lessons_to_excel(student_id: int):
         )
 
         filename = f"lessons_student_{student_id}_{date.today()}.xlsx"
-        filepath = f"/artem/bot/oge_generator_telegram_feedback_bot/excel_files/{filename}"
+        filepath = f"/artem/bot/oge_generator/telegram_feedback_bot/excel_files/{filename}"
 
         df.to_excel(filepath, index=False)
         return filepath
