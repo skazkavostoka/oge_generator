@@ -50,7 +50,7 @@ async def set_role_handler(message: types.Message, state: FSMContext):
 
     await message.answer('Выберите пользователя которому хотите присвоить новую роль', reply_markup=kb)
 
-@teacher_router.callback_query(F.data.startswith('users_choose_page'))
+@teacher_router.callback_query(F.data.startswith('users_choose_page:'))
 async def users_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != "учитель":
@@ -68,7 +68,7 @@ async def users_page(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(kb)
     await callback.answer()
 
-@teacher_router.callback_query(F.data.startswith('users_choose'))
+@teacher_router.callback_query(F.data.startswith('users_choose:'))
 async def users_choose(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != "учитель":
@@ -88,17 +88,6 @@ async def change_user_role(message: Message, state: FSMContext):
     data = await state.get_data()
     user_id = data.get('user_id')
     valid_roles = ['ученик', 'родитель']
-
-    # if user_id:
-    #     await set_user_role(user_id, new_role)
-    #     await message.answer(f'Роль {user_id} успешно обновлена до {new_role}', reply_markup=cmd_start)
-    # else:
-    #     await message.answer('Ошибка, пользователь не выбран')
-    # await state.clear()
-
-
-    data = await state.get_data()
-    user_id = data.get('user_id')
 
     if not user_id:
         await message.answer('Ошибка: не удалось идентифицировать пользователя!', reply_markup=cmd_start)
