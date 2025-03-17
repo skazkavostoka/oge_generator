@@ -479,7 +479,7 @@ async def show_childs_parent(message: types.Message, state: FSMContext):
         await message.answer('Недостаточно прав', reply_markup=cmd_start)
         return
 
-    students = await get_all_students
+    students = await get_all_students()
     if not students:
         await message.answer('Что-то не так с вашей функцией или программой', reply_markup=cmd_start)
         return
