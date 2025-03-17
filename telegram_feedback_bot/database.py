@@ -185,7 +185,7 @@ async def export_lessons_to_excel(student_id: int):
         df.to_excel(filepath, index=False, engine='openpyxl')
         # wb = load_workbook(filepath)
         # ws = wb.active
-        # 
+        #
         # text_style = NamedStyle(name="text_style")
         # text_style.number_format = '@'
         #

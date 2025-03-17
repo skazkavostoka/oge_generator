@@ -33,21 +33,56 @@ async def show_children_handler(message: types.Message):
 
 
 @parent_router.message(or_f(Command('export_lessons'), F.text == 'Выгрузка статистики'))
-async def export_lessons_handler(message: types.Message):
-
+async def export_lessons_handler(message: types.Message, state: FSMContext):
     user = await get_user(message.from_user.id)
     if not user or user.role != 'родитель':
         await message.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
         return
 
-    filepath = await export_lessons_handler(user.id)
+    students = await get_children_to_parent(user.telegram_id)
+    if not students:
+        await message.answer('За вами не закреплены ученики!', reply_markup=cmd_start)
+        return
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='export_lesson')
+    await message.answer('Выберите ученика, результаты за которого хотите выгрузить')
 
-    if filepath:
-        await message.answer_document(types.FSInputFile(filepath), caption='Вот информация о занятиях ваших детей',
-                                      reply_markup=parent_kbrd)
-        os.remove(filepath)
+@parent_router.callback_query(F.data.startswith('export_lesson_page:'))
+async def export_lessons_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'родитель':
+        await callback.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    users = data.get('students', [])
+
+    kb = create_students_inline_kb(users, page=page, prefix='export_lesson')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@parent_router.callback_query(F.data.startswith('export_lesson:'))
+async def export_lesson(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'родитель':
+        await callback.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    success = await export_lessons_to_excel(student_id)
+
+    if success:
+        await callback.message.answer_document(types.FSInputFile(success), caption='Вот информация о занятиях ваших детей',
+                                      reply_markup=cmd_start)
+        os.remove(success)
     else:
-        await message.answer('Данных о занятиях пока нет', reply_markup=parent_kbrd)
+        await callback.message.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
+    await state.clear()
 
 
 @parent_router.message(or_f(Command('last_lessons'), F.text == 'Последние результаты'))
