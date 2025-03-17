@@ -158,9 +158,9 @@ async def student_parent(callback: CallbackQuery, state: FSMContext):
     await state.update_data({'parents': parents})
     kb = create_students_inline_kb(parents, prefix='parent_student')
 
-    await callback.answer('Выберите родителя с которым необходимо установить связь для выбранного ученика',
+    await callback.message.edit_text('Выберите родителя с которым необходимо установить связь для выбранного ученика',
                           reply_markup=kb)
-
+    await callback.answer()
 
 
 @teacher_router.callback_query(F.data.startswith('parent_student_page:'))
