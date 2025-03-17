@@ -107,8 +107,7 @@ async def change_user_role(message: Message, state: FSMContext):
 async def set_parent_handler(message: types.Message, state: FSMContext):
     user = await get_user(message.from_user.id)
     if not user or user.role != "учитель":
-        await message.answer('У вас недостаточно прав!',
-                             reply_markup=cmd_start)
+        await message.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
         return
 
     students = get_all_students()

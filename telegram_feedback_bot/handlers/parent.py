@@ -14,17 +14,11 @@ from keyboards.inline import create_students_inline_kb
 parent_router = Router()
 
 
-def check_user(user_id=0, role='учитель'):
-    user = get_user(user_id)
-    if not user or user.role.lower() != role:
-        return False
-    return True
-
 
 @parent_router.message(or_f(Command('show_children'), F.text =='Кто закреплен за мной?'))
 async def show_children_handler(message: types.Message):
     user = await get_user(message.from_user.id)
-    if not check_user(message.from_user.id, role='родитель'):
+    if not user or user.role != 'родитель':
         await message.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
         return
 
@@ -42,9 +36,8 @@ async def show_children_handler(message: types.Message):
 async def export_lessons_handler(message: types.Message):
 
     user = await get_user(message.from_user.id)
-
-    if not check_user(message.from_user.id, role='учитель'):
-        await message.answer('Эта команда вам недоступна', reply_markup=cmd_start)
+    if not user or user.role != 'родитель':
+        await message.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
         return
 
     filepath = await export_lessons_handler(user.id)
