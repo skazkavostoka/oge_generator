@@ -79,18 +79,23 @@ async def users_choose(callback: CallbackQuery, state: FSMContext):
     user_id = int(user_id_str)
 
     await state.update_data({'user_id': user_id})
-    await callback.message.answer('Введите новую роль для пользователя(ученик, родитель): ')
     await state.set_state('waiting_for_role_change')
-    await callback.answer()
+    await callback.message.answer('Введите новую роль для пользователя(ученик, родитель): ')
 
 @teacher_router.message(F.text, StateFilter('waiting_for_role_change'))
 async def change_user_role(message: Message, state: FSMContext):
     new_role = message.text.strip().lower()
+    data = await state.get_data()
+    user_id = data.get('selected_user_id')
     valid_roles = ['ученик', 'родитель']
 
-    if new_role not in valid_roles:
-        await message.answer('Введенная роль не принадлежит к существующим', reply_markup=cmd_start)
-        return
+    if user_id:
+        await set_user_role(user_id, new_role)
+        await message.answer(f'Роль {user_id} успешно обновлена до {new_role}', reply_markup=cmd_start)
+    else:
+        await message.answer('Ошибка, пользователь не выбран')
+    await state.clear()
+
 
     data = await state.get_data()
     user_id = data.get('user_id')
