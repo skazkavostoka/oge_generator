@@ -102,31 +102,6 @@ async def change_user_role(message: Message, state: FSMContext):
     await state.clear()
 
 
-
-# @teacher_router.message(F.text, StateFilter("waiting_for_role_change"))
-# async def process_role_change(message: types.Message, state: FSMContext):
-#     """Обрабатывает изменение роли"""
-#
-#     try:
-#         new_role = message.text
-#         user_id = int(user_id)
-#     except ValueError:
-#         await message.answer("❌ Ошибка ввода. Введите ID пользователя и новую роль через пробел.",
-#                              reply_markup=cmd_start)
-#         await state.clear()
-#         return
-#
-#     success = await set_user_role(user_id, new_role)
-#     if success:
-#         await message.answer(f"✅ Роль пользователя {user_id} изменена на {new_role}.",
-#                              reply_markup=teacher_kbrd)
-#     else:
-#         await message.answer("❌ Пользователь не найден.",
-#                              reply_markup=teacher_kbrd)
-#
-#     await state.clear()
-
-
 @teacher_router.message(or_f(Command('set_parent'), F.text == 'Установить связь'))
 async def set_parent_handler(message: types.Message, state: FSMContext):
     user = await get_user(message.from_user.id)
