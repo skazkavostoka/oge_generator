@@ -286,7 +286,7 @@ async def student_parent_page(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@teacher_router.callback_query(F.data.startswith('parent_student:'))
+@teacher_router.callback_query(F.data.startswith('child_parent_remove:'))
 async def student_parent(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
