@@ -12,7 +12,6 @@ from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
 
-from venv.bot.handlers.student_private import cmd_start
 
 teacher_router = Router()
 
