@@ -27,7 +27,7 @@ async def show_children_handler(message: types.Message):
         await message.answer('Вы не закреплены ни за одним учеником', reply_markup=parent_kbrd)
         return
 
-    children_list = '\n'.join([f'{child.id}: {child.full_name}'for child in children])
+    children_list = '\n'.join([f'{child.telegram_id}: {child.full_name}'for child in children])
     await message.answer(children_list, reply_markup=parent_kbrd)
 
 

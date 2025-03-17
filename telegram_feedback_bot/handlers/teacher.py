@@ -11,7 +11,9 @@ from database import *
 from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
+from database import show_parent_children
 
+from oge_generator.telegram_feedback_bot.database import get_children_to_parent
 
 teacher_router = Router()
 
@@ -180,6 +182,7 @@ async def student_parent_page(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
+
 @teacher_router.callback_query(F.data.startswith('parent_student:'))
 async def student_parent(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
@@ -196,14 +199,13 @@ async def student_parent(callback: CallbackQuery, state: FSMContext):
 
     success = await add_parent_child(parent_id, student_id)
     if success:
-        await callback.answer(f'Родитель {parent_id} привязан к ребенку {student_id}',
+        await callback.message.answer(f'Родитель {parent_id} привязан к ребенку {student_id}',
                              reply_markup=cmd_start)
 
     else:
-        await callback.answer('Возникла ошибка, проверьте корректность введенных данных',
+        await callback.message.answer('Возникла ошибка, проверьте корректность введенных данных',
                               reply_markup=cmd_start)
     await state.clear()
-
 
 
 @teacher_router.message(or_f(Command('remove_parent'), F.text == 'Удалить связь'))
@@ -214,9 +216,101 @@ async def remove_parent_handler(message: types.Message, state: FSMContext):
                              reply_markup=cmd_start)
         return
 
-    await message.answer('Введите через пробел ID родителя и ID ребенка', reply_markup=cmd_start)
+    parents = await get_all_parents()
+    if not parents:
+        await message.answer('Нет пользователей-родителей', reply_markup=cmd_start)
+        return
 
-    await state.set_state('waiting_for_ids_remove')
+    await state.update_data({'parents': parents})
+    kb = create_students_inline_kb(parents, prefix='parent_child_remove')
+    await message.answer('Выберите родителя, у которого хотите удалить связь', reply_markup=kb)
+
+@teacher_router.callback_query(F.data.startswith('parent_child_remove_page:'))
+async def remove_parent_handler(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    parents = data.get('parents', [])
+
+    kb = create_students_inline_kb(parents, page=page, prefix='parent_child_remove')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('parent_child_remove:'))
+async def student_parent(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, parent_id_str = callback.data.split(':')
+    parent_id = int(parent_id_str)
+
+    await state.update_data({'parent_id': parent_id})
+    students = await get_children_to_parent()
+
+    if not students:
+        await callback.answer('Для начала добавьте учеников этому родителю!', reply_markup = cmd_start)
+        await state.clear()
+        return
+
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='child_parent_remove')
+
+    await callback.message.edit_text('Выберите ученика с которым необходимо удалить связь',
+                          reply_markup=kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('child_parent_remove_page:'))
+async def student_parent_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+
+    kb = create_students_inline_kb(students, page=page, prefix='child_parent_remove')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('parent_student:'))
+async def student_parent(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    data = await state.get_data()
+    parent_id = data.get('parent_id', [])
+
+
+    success = await remove_parent_child(parent_id, student_id)
+    if success:
+        await callback.message.answer(f'Родитель {parent_id} отвязан от ребенка {student_id}',
+                             reply_markup=cmd_start)
+
+    else:
+        await callback.message.answer('Возникла ошибка, проверьте корректность введенных данных',
+                              reply_markup=cmd_start)
+    await state.clear()
+
 
 
 @teacher_router.message(F.text, StateFilter('waiting_for_ids_remove'))
@@ -334,7 +428,7 @@ async def newlesson_page(callback: CallbackQuery, state: FSMContext):
     students = data.get('students', [])
 
     kb = create_students_inline_kb(students, page=page, prefix='newlesson_student')
-    await callback.message.edit_reply_markup(kb)
+    await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
 
@@ -376,4 +470,60 @@ async def process_new_lesson_data(message: Message, state: FSMContext):
     else:
         await message.answer('Ошибка при создании урока')
 
+    await state.clear()
+
+
+@teacher_router.message(F.text == 'Посмотреть связи')
+async def show_childs_parent(message: types.Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer('Недостаточно прав', reply_markup=cmd_start)
+        return
+
+    students = await get_all_students
+    if not students:
+        await message.answer('Что-то не так с вашей функцией или программой', reply_markup=cmd_start)
+        return
+
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='show_parent_child')
+    await message.answer('Выберите ученика, связи которого хотите посмотреть: ', reply_markup=kb)
+
+
+@teacher_router.callback_query(F.data.startswith('show_parent_child_page:'))
+async def show_parent_child_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+
+    kb = create_students_inline_kb(students, prefix='show_parent_child')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('show_parent_child:'))
+async def show_parent_child(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    success = await show_parent_children(student_id)
+    if not success:
+        await callback.answer('У ученика нет родителей', reply_markup=cmd_start)
+        await state.clear()
+        return
+
+    parent_list = '\n'.join([f'{parent.telegram_id}: {parent.full_name}' for parent in success])
+    await callback.answer(parent_list, reply_markup=cmd_start)
     await state.clear()

@@ -191,6 +191,10 @@ async def get_all_parents():
         return result.scalars().all()
 
 
+async def show_child_parents(child_tg_id: int):
+    async with AsyncSessionLocal() as session:
+        query = select(User).join(ParentChild,
+                User.telegram_id == ParentChild.parent_id).where(ParentChild.child_id == child_tg_id)
 
-
-
+        result = await session.execute(stmt)
+        return result.scalars().all()
