@@ -24,7 +24,7 @@ def create_students_inline_kb(students, page=1, page_size=5, prefix='student_les
 
     # Кнопки «Назад/Вперёд»
     nav_buttons = []
-    if page > 1:
+    if page >= 1:
         nav_buttons.append(
             InlineKeyboardButton(
                 text="<<",
