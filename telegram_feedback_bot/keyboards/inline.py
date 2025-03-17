@@ -28,7 +28,7 @@ def create_students_inline_kb(students, page=1, page_size=5, prefix='student_les
         nav_buttons.append(
             InlineKeyboardButton(
                 text="<<",
-                callback_data=f"{prefix}_page:{page-1}"
+                callback_data=f"{prefix}_page:{page}"
         )
             )
     if end_index < len(students):
