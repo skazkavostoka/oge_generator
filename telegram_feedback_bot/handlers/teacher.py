@@ -110,7 +110,7 @@ async def set_parent_handler(message: types.Message, state: FSMContext):
         await message.answer("❌ У вас нет прав для выполнения этой команды.", reply_markup=cmd_start)
         return
 
-    students = get_all_students()
+    students = await get_all_students()
     if not students:
         await message.answer('Нет ни одного ученика или с программой что-то не так.', reply_markup=cmd_start())
         return

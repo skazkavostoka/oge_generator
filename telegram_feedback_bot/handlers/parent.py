@@ -22,7 +22,7 @@ async def show_children_handler(message: types.Message):
         await message.answer('Вы не имеете прав для выполнения этой команды', reply_markup=cmd_start)
         return
 
-    children = await get_children_to_parent(user.id)
+    children = await get_children_to_parent(user.telegram_id)
     if not children:
         await message.answer('Вы не закреплены ни за одним учеником', reply_markup=parent_kbrd)
         return

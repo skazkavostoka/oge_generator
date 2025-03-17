@@ -176,11 +176,13 @@ async def get_all_students():
         return result.scalars().all()
 
 
+
 async def get_all_users():
     async with AsyncSessionLocal() as session:
         users = select(User)
         result = await session.execute(users)
         return result.scalars().all()
+
 
 async def get_all_parents():
     async with AsyncSessionLocal() as session:
