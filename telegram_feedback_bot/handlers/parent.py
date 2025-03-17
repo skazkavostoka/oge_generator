@@ -45,7 +45,7 @@ async def export_lessons_handler(message: types.Message, state: FSMContext):
         return
     await state.update_data({'students': students})
     kb = create_students_inline_kb(students, prefix='export_lesson')
-    await message.answer('Выберите ученика, результаты за которого хотите выгрузить')
+    await message.answer('Выберите ученика, результаты за которого хотите выгрузить', reply_markup=kb)
 
 @parent_router.callback_query(F.data.startswith('export_lesson_page:'))
 async def export_lessons_page(callback: CallbackQuery, state: FSMContext):
