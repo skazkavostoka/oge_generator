@@ -1,6 +1,8 @@
 import logging
 import os
 
+from openpyxl.reader.excel import load_workbook
+from openpyxl.styles import NamedStyle
 from sqlalchemy.dialects.mssql.information_schema import columns
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -12,6 +14,7 @@ from models import Base, User, ParentChild, Lesson
 
 from datetime import date
 import pandas as pd
+import openpyxl
 
 
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -179,7 +182,19 @@ async def export_lessons_to_excel(student_id: int):
         filepath = f"/home/artem/bot/oge_generator/telegram_feedback_bot/excel_files/{filename}"
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-        df.to_excel(filepath, index=False)
+        df.to_excel(filepath, index=False, engine='openpyxl')
+        wb = load_workbook(filepath)
+        ws = wb.active
+
+        text_style = NamedStyle(name="text_style")
+        text_style.number_format = '@'
+
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+            for cell in row:
+                cell.style = text_style
+
+        wb.save(filepath)
+
         return filepath
 
 
