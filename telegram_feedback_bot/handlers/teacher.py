@@ -574,7 +574,7 @@ async def export_lessons(callback: CallbackQuery, state: FSMContext):
     if success:
         await callback.answer_document(types.FSInputFile(success), caption='Вот информация о занятиях ваших детей',
                                       reply_markup=cmd_start)
+        os.remove(success)
     else:
         await callback.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
-    os.remove(success)
     await state.clear()
