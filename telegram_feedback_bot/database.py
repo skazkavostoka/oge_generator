@@ -182,6 +182,11 @@ async def get_all_users():
         result = await session.execute(users)
         return result.scalars().all()
 
+async def get_all_parents():
+    async with AsyncSessionLocal() as session:
+        parents = select(User).where(User.role == 'родитель')
+        result = await session.execute(parents)
+        return result.scalars().all()
 
 
 

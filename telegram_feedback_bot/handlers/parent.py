@@ -73,7 +73,7 @@ async def get_last_lessons(message: types.Message, state: FSMContext):
     await message.answer('Выберите учеников', reply_markup=kb)
 
 
-@parent_router.callback_query(F.data.startswith('parent_page'))
+@parent_router.callback_query(F.data.startswith('parent_lessons_page:'))
 async def parent_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'родитель':
@@ -85,13 +85,13 @@ async def parent_page(callback: CallbackQuery, state: FSMContext):
 
     data = await state.get_data()
 
-    students = data.get('student', [])
+    students = data.get('students', [])
 
-    kb = create_students_inline_kb(students, page=page)
-    await callback.message.edit_reply_markup(kb)
+    kb = create_students_inline_kb(students, page=page, prefix='parent_lessons')
+    await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
-@parent_router.callback_query(F.data.startswith('parent_lessons'))
+@parent_router.callback_query(F.data.startswith('parent_lessons:'))
 async def parent_lessons(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'родитель':

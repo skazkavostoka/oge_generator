@@ -1,4 +1,5 @@
 from sys import prefix
+from tracemalloc import Statistic
 
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
@@ -9,8 +10,9 @@ from aiogram.filters import Command, or_f, StateFilter
 from database import *
 from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
-from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students
+from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
 
+from venv.bot.handlers.student_private import cmd_start
 
 teacher_router = Router()
 
@@ -110,30 +112,98 @@ async def set_parent_handler(message: types.Message, state: FSMContext):
                              reply_markup=cmd_start)
         return
 
-    await message.answer('Введите через пробел ID родителя и ID ребенка', reply_markup=cmd_start)
+    students = get_all_students()
+    if not students:
+        await message.answer('Нет ни одного ученика или с программой что-то не так.', reply_markup=cmd_start())
+        return
 
-    await state.set_state('waiting_for_ids')
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='student_parent')
+    await message.answer('Выберите ученика, для которого хотите создать связь', reply_markup=kb)
 
 
-@teacher_router.message(F.text, StateFilter('waiting_for_ids'))
-async def process_set_parent(message: types.Message, state: FSMContext):
-    try:
-        parent_id, student_id = message.text.split(maxsplit=1)
-        parent_id, student_id = int(parent_id), int(student_id)
-    except ValueError:
-        await message.answer('Ошибка ввода!'
-                             'Введите Введите через пробел ID родителя и ID ребенка без ошибок',
-                             reply_markup=cmd_start)
+@teacher_router.callback_query(F.data.startswith('student_parent_page:'))
+async def student_parent_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+
+    kb = create_students_inline_kb(students, page=page, prefix='student_parent')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('student_parent:'))
+async def student_parent(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    await state.update_data({'student_id': student_id})
+    parents = get_all_parents()
+
+    if not parents:
+        await callback.answer('Для начала добавьте родителей!', reply_markup = cmd_start)
         await state.clear()
         return
 
+    await state.update_data({'parents': parents})
+    kb = create_students_inline_kb(parents, prefix='parent_student')
+
+    await callback.answer('Выберите родителя с которым необходимо установить связь для выбранного ученика',
+                          reply_markup=kb)
+
+
+
+@teacher_router.callback_query(F.data.startswith('parent_student_page:'))
+async def student_parent_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('parents', [])
+
+    kb = create_students_inline_kb(students, page=page, prefix='parent_student')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('parent_student:'))
+async def student_parent(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, parent_id_str = callback.data.split(':')
+    parent_id = int(parent_id_str)
+
+    data = await state.get_data()
+    student_id = data.get('student_id', [])
+
+
     success = await add_parent_child(parent_id, student_id)
     if success:
-        await message.answer(f'Родитель {parent_id} привязан к ребенку {student_id}',
-                             reply_markup=teacher_kbrd)
+        await callback.answer(f'Родитель {parent_id} привязан к ребенку {student_id}',
+                             reply_markup=cmd_start)
+
     else:
-        await message.answer('Возникла ошибка, проверьте корректность введенных данных',
-                             reply_markup=teacher_kbrd)
+        await callback.answer('Возникла ошибка, проверьте корректность введенных данных',
+                              reply_markup=cmd_start)
     await state.clear()
 
 
@@ -193,7 +263,7 @@ async def show_results_handler(message: Message, state: FSMContext):
     await message.answer('Выберите учеников', reply_markup=kb)
 
 
-@teacher_router.callback_query(F.data.startswith('students_page:'))
+@teacher_router.callback_query(F.data.startswith('students_lessons_page:'))
 async def process_student_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
@@ -206,7 +276,7 @@ async def process_student_page(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     students = data.get('students', [])
 
-    kb = create_students_inline_kb(students, page=page)
+    kb = create_students_inline_kb(students, page=page, prefix='student_lessons')
     await callback.message.edit_reply_markup(kb)
     await callback.answer()
 
@@ -252,7 +322,7 @@ async def create_lesson_start(message: Message, state: FSMContext):
     await message.answer('Выберите учеников', reply_markup=kb)
 
 
-@teacher_router.callback_query(F.data.startswith('newlesson_page'))
+@teacher_router.callback_query(F.data.startswith('newlesson_student_page:'))
 async def newlesson_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
@@ -265,12 +335,12 @@ async def newlesson_page(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     students = data.get('students', [])
 
-    kb = create_students_inline_kb(students, page=page)
+    kb = create_students_inline_kb(students, page=page, prefix='newlesson_student')
     await callback.message.edit_reply_markup(kb)
     await callback.answer()
 
 
-@teacher_router.callback_query(F.data.startswith('newlesson_student'))
+@teacher_router.callback_query(F.data.startswith('newlesson_student:'))
 async def choose_student_newlesson(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
