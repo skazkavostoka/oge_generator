@@ -524,5 +524,5 @@ async def show_parent_child(callback: CallbackQuery, state: FSMContext):
         return
 
     parent_list = '\n'.join([f'{parent.telegram_id}: {parent.full_name}' for parent in success])
-    await callback.answer(parent_list, reply_markup=cmd_start)
+    await callback.message.answer(parent_list, reply_markup=cmd_start)
     await state.clear()
