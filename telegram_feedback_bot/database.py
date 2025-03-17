@@ -183,17 +183,17 @@ async def export_lessons_to_excel(student_id: int):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         df.to_excel(filepath, index=False, engine='openpyxl')
-        wb = load_workbook(filepath)
-        ws = wb.active
-
-        text_style = NamedStyle(name="text_style")
-        text_style.number_format = '@'
-
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-            for cell in row:
-                cell.style = text_style
-
-        wb.save(filepath)
+        # wb = load_workbook(filepath)
+        # ws = wb.active
+        # 
+        # text_style = NamedStyle(name="text_style")
+        # text_style.number_format = '@'
+        #
+        # for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        #     for cell in row:
+        #         cell.style = text_style
+        #
+        # wb.save(filepath)
 
         return filepath
 
