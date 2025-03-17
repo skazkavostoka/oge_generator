@@ -517,7 +517,7 @@ async def show_parent_child(callback: CallbackQuery, state: FSMContext):
     _, student_id_str = callback.data.split(':')
     student_id = int(student_id_str)
 
-    success = await show_parent_children(student_id)
+    success = await show_child_parents(student_id)
     if not success:
         await callback.answer('У ученика нет родителей', reply_markup=cmd_start)
         await state.clear()
