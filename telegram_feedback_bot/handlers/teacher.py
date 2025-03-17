@@ -576,5 +576,5 @@ async def export_lessons(callback: CallbackQuery, state: FSMContext):
                                       reply_markup=cmd_start)
         os.remove(success)
     else:
-        await callback.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
+        await callback.message.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
     await state.clear()

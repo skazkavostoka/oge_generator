@@ -149,7 +149,7 @@ async def export_lessons_to_excel(student_id: int):
                 Lesson.cw_res,
                 Lesson.test_res
             )
-            .join(User, Lesson.student_id == User.id)
+            .join(User, Lesson.student_id == User.telegram_id)
             .where(Lesson.student_id == student_id)
             .order_by(Lesson.date)
         )
