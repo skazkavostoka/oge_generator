@@ -1,4 +1,5 @@
 import logging
+import os
 
 from sqlalchemy.dialects.mssql.information_schema import columns
 from sqlalchemy.exc import IntegrityError
@@ -176,6 +177,7 @@ async def export_lessons_to_excel(student_id: int):
 
         filename = f"lessons_student_{student_id}_{date.today()}.xlsx"
         filepath = f"/home/artem/bot/oge_generator/telegram_feedback_bot/excel_files/{filename}"
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         df.to_excel(filepath, index=False)
         return filepath
