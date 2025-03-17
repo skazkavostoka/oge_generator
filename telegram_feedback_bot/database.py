@@ -196,5 +196,5 @@ async def show_child_parents(child_tg_id: int):
         query = select(User).join(ParentChild,
                 User.telegram_id == ParentChild.parent_id).where(ParentChild.child_id == child_tg_id)
 
-        result = await session.execute(stmt)
+        result = await session.execute(query)
         return result.scalars().all()
