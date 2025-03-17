@@ -140,8 +140,8 @@ async def delete_lesson(student_id: int, lesson_date: date):
 
 async def export_lessons_to_excel(student_id: int):
     async with AsyncSessionLocal() as session:
-        query = (
-            session.query(
+        stmt = (
+            select(
                 Lesson.student_id,
                 User.full_name,
                 Lesson.date,
@@ -150,35 +150,35 @@ async def export_lessons_to_excel(student_id: int):
                 Lesson.test_res
             )
             .join(User, Lesson.student_id == User.id)
-            .filter(Lesson.student_id == student_id)
+            .where(Lesson.student_id == student_id)
             .order_by(Lesson.date)
         )
-    lessons = query.all()
 
-    if not lessons:
-        return None
+        # Выполняем запрос
+        result = await session.execute(stmt)
+        lessons = result.all()  # список кортежей
 
-    # Создаем DataFrame
-    df = pd.DataFrame(
-        lessons,
-        columns=[
-            "ID ученика",
-            "ФИО ученика",
-            "Дата",
-            "Результат ДЗ",
-            "Работа на занятии",
-            "Результат теста",
-        ],
-    )
+        if not lessons:
+            return None
 
-    # Формируем имя файла
-    filename = f"lessons_student_{student_id}_{date.today()}.xlsx"
-    filepath = f"/mnt/data/{filename}"
+        # Далее формируем DataFrame и сохраняем Excel
+        df = pd.DataFrame(
+            lessons,
+            columns=[
+                "ID ученика",
+                "ФИО ученика",
+                "Дата",
+                "Результат ДЗ",
+                "Работа на занятии",
+                "Результат теста",
+            ],
+        )
 
-    # Сохраняем DataFrame в Excel
-    df.to_excel(filepath, index=False)
+        filename = f"lessons_student_{student_id}_{date.today()}.xlsx"
+        filepath = f"/mnt/data/{filename}"
 
-    return filepath
+        df.to_excel(filepath, index=False)
+        return filepath
 
 
 async def get_all_students():
