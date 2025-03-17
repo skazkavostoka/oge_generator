@@ -110,6 +110,7 @@ async def change_user_role(message: Message, state: FSMContext):
     else:
         await message.answer('Возникли проблемы', reply_markup=cmd_start)
 
+    await state.clear()
 
 
 
