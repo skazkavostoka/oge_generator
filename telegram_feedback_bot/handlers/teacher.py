@@ -62,7 +62,7 @@ async def users_page(callback: CallbackQuery, state: FSMContext):
 
     data = await state.get_data()
 
-    users = data.get('user', [])
+    users = data.get('users', [])
 
     kb = create_students_inline_kb(users, page=page)
     await callback.message.edit_reply_markup(kb)
@@ -86,15 +86,15 @@ async def users_choose(callback: CallbackQuery, state: FSMContext):
 async def change_user_role(message: Message, state: FSMContext):
     new_role = message.text.strip().lower()
     data = await state.get_data()
-    user_id = data.get('selected_user_id')
+    user_id = data.get('user_id')
     valid_roles = ['ученик', 'родитель']
 
-    if user_id:
-        await set_user_role(user_id, new_role)
-        await message.answer(f'Роль {user_id} успешно обновлена до {new_role}', reply_markup=cmd_start)
-    else:
-        await message.answer('Ошибка, пользователь не выбран')
-    await state.clear()
+    # if user_id:
+    #     await set_user_role(user_id, new_role)
+    #     await message.answer(f'Роль {user_id} успешно обновлена до {new_role}', reply_markup=cmd_start)
+    # else:
+    #     await message.answer('Ошибка, пользователь не выбран')
+    # await state.clear()
 
 
     data = await state.get_data()
@@ -110,32 +110,31 @@ async def change_user_role(message: Message, state: FSMContext):
     else:
         await message.answer('Возникли проблемы', reply_markup=cmd_start)
 
-    await state.clear()
 
 
 
-@teacher_router.message(F.text, StateFilter("waiting_for_role_change"))
-async def process_role_change(message: types.Message, state: FSMContext):
-    """Обрабатывает изменение роли"""
-
-    try:
-        new_role = message.text
-        user_id = int(user_id)
-    except ValueError:
-        await message.answer("❌ Ошибка ввода. Введите ID пользователя и новую роль через пробел.",
-                             reply_markup=cmd_start)
-        await state.clear()
-        return
-
-    success = await set_user_role(user_id, new_role)
-    if success:
-        await message.answer(f"✅ Роль пользователя {user_id} изменена на {new_role}.",
-                             reply_markup=teacher_kbrd)
-    else:
-        await message.answer("❌ Пользователь не найден.",
-                             reply_markup=teacher_kbrd)
-
-    await state.clear()
+# @teacher_router.message(F.text, StateFilter("waiting_for_role_change"))
+# async def process_role_change(message: types.Message, state: FSMContext):
+#     """Обрабатывает изменение роли"""
+#
+#     try:
+#         new_role = message.text
+#         user_id = int(user_id)
+#     except ValueError:
+#         await message.answer("❌ Ошибка ввода. Введите ID пользователя и новую роль через пробел.",
+#                              reply_markup=cmd_start)
+#         await state.clear()
+#         return
+#
+#     success = await set_user_role(user_id, new_role)
+#     if success:
+#         await message.answer(f"✅ Роль пользователя {user_id} изменена на {new_role}.",
+#                              reply_markup=teacher_kbrd)
+#     else:
+#         await message.answer("❌ Пользователь не найден.",
+#                              reply_markup=teacher_kbrd)
+#
+#     await state.clear()
 
 
 @teacher_router.message(or_f(Command('set_parent'), F.text == 'Установить связь'))
