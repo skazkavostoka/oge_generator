@@ -65,7 +65,7 @@ async def users_page(callback: CallbackQuery, state: FSMContext):
     users = data.get('users', [])
 
     kb = create_students_inline_kb(users, page=page)
-    await callback.message.edit_reply_markup(kb)
+    await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
 @teacher_router.callback_query(F.data.startswith('users_choose:'))
