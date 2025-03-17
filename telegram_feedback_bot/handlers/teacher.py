@@ -148,7 +148,7 @@ async def student_parent(callback: CallbackQuery, state: FSMContext):
     student_id = int(student_id_str)
 
     await state.update_data({'student_id': student_id})
-    parents = get_all_parents()
+    parents = await get_all_parents()
 
     if not parents:
         await callback.answer('Для начала добавьте родителей!', reply_markup = cmd_start)
