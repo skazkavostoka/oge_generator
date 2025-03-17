@@ -11,7 +11,7 @@ from database import *
 from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
-from database import show_parent_children
+from database import show_child_parents
 
 from oge_generator.telegram_feedback_bot.database import get_children_to_parent
 
