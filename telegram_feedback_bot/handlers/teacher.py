@@ -625,7 +625,7 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
     await state.update_data({'student_id': student_id})
     await callback.message.answer("Введите дату занятия, которое хотите изменить в формате YYYY-MM-DD")
 
-    await state.set_state('waiting_for_old_lesson_data')
+    await state.set_state('waiting_for_old_date_lesson')
     await callback.answer()
 
 
@@ -636,7 +636,7 @@ async def process_old_lesson_data(message: Message, state: FSMContext):
     await state.update_data({'old_date': old_date})
     await  message.answer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
 
-    await state.set_state('waiting_for_new_lesson_data')
+    await state.set_state('waiting_for_new_date_lesson')
     await message.answer()
 
 @teacher_router.message(F.text, StateFilter('waiting_for_new_date_lesson'))
