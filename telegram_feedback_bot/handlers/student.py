@@ -17,7 +17,7 @@ async def show_my_results(message: types.Message):
         await message.answer('Возникла какая-то ошибка!', reply_markup=cmd_start)
         return
 
-    lessons = await get_lessons(user.telegram_id)
+    lessons = await get_all_lessons(user.telegram_id)
     if not lessons:
         await message.answer('Пока что тут пусто !=(')
     else:

@@ -123,6 +123,15 @@ async def get_lessons(student_id: int = None):
         result = await session.execute(query)
         return result.scalars().all()
 
+async def get_all_lessons(student_id: int = None):
+    async with AsyncSessionLocal() as session:
+        query = select(Lesson).order_by(Lesson.date.desc())
+        if student_id:
+            query = query.where(Lesson.student_id == student_id)
+
+        result = await session.execute(query)
+        return result.scalars().all()
+
 
 async def delete_lesson(student_id: int, lesson_date: date):
     async with AsyncSessionLocal() as session:
