@@ -48,7 +48,7 @@ def create_students_inline_kb(students, page=1, page_size=5, prefix='student_les
 
 
 
-def create_students_inline_kb(lessons, page=1, page_size=5, prefix='student_lesson'):
+def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='student_lesson'):
     """
     Создаём построчную клавиатуру для списка учеников,
     с навигацией по страницам и кастомным префиксом.
