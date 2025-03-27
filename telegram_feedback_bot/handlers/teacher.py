@@ -11,6 +11,7 @@ from database import *
 
 import os
 
+from oge_generator.telegram_feedback_bot.keyboards.reply import cmd_start
 
 teacher_router = Router()
 
@@ -768,8 +769,8 @@ async def choose_lesson_to_delete(callback: CallbackQuery, state: FSMContext):
 
     success = await delete_lesson(lesson_id)
     if success:
-        await callback.answer(f'Удален урок {lesson_id}')
+        await callback.message.answer(f'Удален урок {lesson_id}', reply_markup=cmd_start)
     else:
-        await callback.answer('Ошибка при удалении урока')
+        await callback.message.answer('Ошибка при удалении урока', reply_markup=cmd_start)
 
     await state.clear()
