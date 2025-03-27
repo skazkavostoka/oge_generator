@@ -773,22 +773,3 @@ async def choose_lesson_to_delete(callback: CallbackQuery, state: FSMContext):
         await callback.answer('Ошибка при удалении урока')
 
     await state.clear()
-
-    await state.update_data({'lesson_id': lesson_id})
-    await callback.message.answer("Введите новую дату для урока (формат: YYYY-MM-DD):")
-    await state.set_state('waiting_for_change_lesson')
-    await callback.answer()
-
-@teacher_router.message(F.text, StateFilter('waiting_for_change_lesson'))
-async def process_change_lesson(message: Message, state: FSMContext):
-    data = await state.get_data()
-    lesson_id = data.get('lesson_id')
-    new_date_str = message.text.strip()
-
-    success = await change_lesson(lesson_id, new_date_str)
-    if success:
-        await message.answer(f"Дата изменена с {new_date_str}", reply_markup=cmd_start)
-    else:
-        await message.answer('Ошибка при изменении урока')
-
-    await state.clear()
