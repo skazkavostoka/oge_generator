@@ -40,15 +40,14 @@ def create_students_inline_kb(students, page=1, page_size=5, prefix='student_les
 
 
 
-def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='change_lesson'):
+def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='choose_lesson_to_change'):
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
     chunk = lessons[start_index:end_index]
 
-    # Каждая строка — это список InlineKeyboardButton
     keyboard_rows = []
 
-    # Кнопки для каждого ученика
+    # Кнопки
     for lesson in chunk:
         lesson_date = str(lesson.date)
         text = f'{lesson_date}:{lesson.id}'
@@ -56,10 +55,8 @@ def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='change_lesson
             text=text,
             callback_data=f"{prefix}:{lesson.id}"
         )
-        # Добавляем отдельную строку с одной кнопкой
         keyboard_rows.append([button])
 
-    # Кнопки «Назад/Вперёд»
     nav_buttons = []
     if page > 1:
         nav_buttons.append(
@@ -76,9 +73,7 @@ def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='change_lesson
             )
         )
 
-    # Если есть кнопки навигации, добавляем их в конец (одна строка)
     if nav_buttons:
         keyboard_rows.append(nav_buttons)
 
-    # Возвращаем InlineKeyboardMarkup, передавая кнопки через inline_keyboard
     return InlineKeyboardMarkup(inline_keyboard=keyboard_rows)

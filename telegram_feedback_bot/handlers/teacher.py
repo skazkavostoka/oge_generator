@@ -628,7 +628,7 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer('У ученика нет уроков')
         await callback.answer()
         return
-    data = await state.update_data({'lessons': lessons})
+    await state.update_data({'lessons': lessons})
 
     kb = create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='choose_lesson_to_change')
     await callback.message.edit_reply_markup(reply_markup=kb)
@@ -656,7 +656,7 @@ async def choose_lesson_to_change_page(callback: CallbackQuery, state: FSMContex
     await callback.answer()
 
 @teacher_router.callback_query(F.data.startswith('choose_lesson_to_change:'))
-async def choose_lesson_to_change_page(callback: CallbackQuery, state: FSMContext):
+async def choose_lesson_to_change(callback: CallbackQuery, state: FSMContext):
 
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
