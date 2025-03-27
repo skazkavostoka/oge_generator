@@ -634,7 +634,7 @@ async def process_old_lesson_data(message: Message, state: FSMContext):
     old_date = message.text.strip()
 
     await state.update_data({'old_date': old_date})
-    await  message.asnwer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
+    await  message.answer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
 
     await state.set_state('waiting_for_new_lesson_data')
     await message.answer()
