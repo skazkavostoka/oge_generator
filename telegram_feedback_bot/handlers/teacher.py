@@ -752,7 +752,7 @@ async def choose_lesson_to_delete_page(callback: CallbackQuery, state: FSMContex
     data = await state.get_data()
     lessons = data.get('lessons', [])
 
-    kb = create_lessons_inline_kb(lessons, page=page, page_size=5, prefix='choose_lesson_to_change')
+    kb = create_lessons_inline_kb(lessons, page=page, page_size=5, prefix='choose_lesson_to_delete')
     await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
