@@ -580,7 +580,7 @@ async def export_lessons(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
 @teacher_router.message(F.text == 'Изменить урок')
-async def change_lesson(message: types.Message, state: FSMContext):
+async def change_lesson_date(message: types.Message, state: FSMContext):
     user = await get_user(message.from_user.id)
     if not user or user.role != 'учитель':
         await message.answer('Недостаточно прав', show_alert=True)
