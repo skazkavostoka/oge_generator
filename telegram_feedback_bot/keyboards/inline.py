@@ -62,7 +62,7 @@ def create_students_inline_kb(lessons, page=1, page_size=5, prefix='student_less
 
     # Кнопки для каждого ученика
     for lesson in lessons:
-        lesson_date = str(lesson.date)\
+        lesson_date = str(lesson.date)
         text = f'{lesson_date}:{lesson.id}'
         button = InlineKeyboardButton(
             text=text,
