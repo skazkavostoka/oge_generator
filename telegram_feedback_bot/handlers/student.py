@@ -30,3 +30,6 @@ async def show_my_results(message: types.Message):
         await message.answer(f'Ваши последние результаты:\n{text}', reply_markup=cmd_start)
 
 
+
+
+

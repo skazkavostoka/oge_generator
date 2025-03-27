@@ -133,22 +133,20 @@ async def get_all_lessons(student_id: int = None):
         return result.scalars().all()
 
 
-async def delete_lesson(student_id: int, lesson_date: date):
+async def delete_lesson(lesson_id: int):
     async with AsyncSessionLocal() as session:
         query = select(Lesson).where(
-            Lesson.student_id == student_id,
-            Lesson.date == lesson_date
-        )
+            Lesson.id == lesson_id)
         result = await session.execute(query)
         lesson = result.scalar_one_or_none()
 
         if lesson:
             await session.delete(lesson)
             await session.commit()
-            logging.info(f'Удалено занятие ученика {student_id} от {lesson_date}')
+            logging.info(f'Удалено занятие ученика {lesson_id}')
             return True
 
-        logging.warning(f'Не получилось удалить занятие ученика {student_id} от {lesson_date}')
+        logging.warning(f'Не получилось удалить занятие ученика {lesson_id}')
 
 
 async def change_lesson(lesson_id: int,  new_date_str: str):

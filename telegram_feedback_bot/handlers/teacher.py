@@ -680,3 +680,115 @@ async def process_change_lesson(message: Message, state: FSMContext):
         await message.answer('Ошибка при изменении урока')
 
     await state.clear()
+
+
+
+@teacher_router.message(F.text == 'Удалить урок')
+async def delete_lesson_handler(message: types.Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer('Недостаточно прав', show_alert=True)
+        return
+
+    students = await get_all_students()
+    if not students:
+        await message.answer('Нет учеников или что-то не так с программой', reply_markup=cmd_start)
+        return
+
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='delete_lesson')
+    await message.answer('Выберите студента, у которого необходимо удалить урок', reply_markup=kb)
+
+
+@teacher_router.callback_query(F.data.startswith('delete_lesson_page:'))
+async def delete_lesson_handler_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+    kb = create_students_inline_kb(students, page=page, prefix='delete_lesson')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('delete_lesson:'))
+async def delete_lesson_handler(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    await state.update_data({'student_id': student_id})
+    lessons = await get_all_lessons(student_id=student_id)
+    if not lessons:
+        await callback.message.answer('У ученика нет уроков')
+        await callback.answer()
+        return
+    await state.update_data({'lessons': lessons})
+
+    kb = create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='choose_lesson_to_delete')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer("Выберите урок который хотите удалить")
+
+
+@teacher_router.callback_query(F.data.startswith('choose_lesson_to_delete_page:'))
+async def choose_lesson_to_delete_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer("Недостаточно прав!", show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    lessons = data.get('lessons', [])
+
+    kb = create_lessons_inline_kb(lessons, page=page, page_size=5, prefix='choose_lesson_to_change')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('choose_lesson_to_delete:'))
+async def choose_lesson_to_delete(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer("Недостаточно прав!", show_alert=True)
+        return
+
+    _, lesson_str = callback.data.split(':')
+    lesson_id = int(lesson_str)
+
+    success = await delete_lesson(lesson_id)
+    if success:
+        await callback.answer(f'Удален урок {lesson_id}')
+    else:
+        await callback.answer('Ошибка при удалении урока')
+
+    await state.clear()
+
+    await state.update_data({'lesson_id': lesson_id})
+    await callback.message.answer("Введите новую дату для урока (формат: YYYY-MM-DD):")
+    await state.set_state('waiting_for_change_lesson')
+    await callback.answer()
+
+@teacher_router.message(F.text, StateFilter('waiting_for_change_lesson'))
+async def process_change_lesson(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lesson_id = data.get('lesson_id')
+    new_date_str = message.text.strip()
+
+    success = await change_lesson(lesson_id, new_date_str)
+    if success:
+        await message.answer(f"Дата изменена с {new_date_str}", reply_markup=cmd_start)
+    else:
+        await message.answer('Ошибка при изменении урока')
+
+    await state.clear()
