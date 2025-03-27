@@ -623,7 +623,7 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
     student_id = int(student_id_str)
 
     await state.update_data({'student_id': student_id})
-    lessons = await get_lessons(student_id=student_id)
+    lessons = await get_all_lessons(student_id=student_id)
     if not lessons:
         await callback.message.answer('У ученика нет уроков')
         await callback.answer()
