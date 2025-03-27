@@ -629,7 +629,7 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@teacher_router.message(F.text, StateFilter('waiting_for_old_lesson_data'))
+@teacher_router.message(F.text, StateFilter('waiting_for_old_date_lesson'))
 async def process_old_lesson_data(message: Message, state: FSMContext):
     old_date = message.text.strip()
 
@@ -639,7 +639,7 @@ async def process_old_lesson_data(message: Message, state: FSMContext):
     await state.set_state('waiting_for_new_lesson_data')
     await message.answer()
 
-@teacher_router.message(F.text, StateFilter('waiting_for_old_lesson_data'))
+@teacher_router.message(F.text, StateFilter('waiting_for_new_date_lesson'))
 async def process_new_lesson_data(message: Message, state: FSMContext):
     data = await state.get_data()
 
