@@ -6,11 +6,13 @@ from aiogram.filters import Command, or_f, StateFilter
 
 from database import *
 from keyboards.reply import *
-from keyboards.inline import create_students_inline_kb
+from keyboards.inline import create_students_inline_kb, create_lessons_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
 from database import show_child_parents, get_children_to_parent, export_lessons_to_excel, change_lesson
 
 import os
+
+from oge_generator.telegram_feedback_bot.database import get_lessons
 
 teacher_router = Router()
 
@@ -623,35 +625,63 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
     student_id = int(student_id_str)
 
     await state.update_data({'student_id': student_id})
-    await callback.message.answer("Введите дату занятия, которое хотите изменить в формате YYYY-MM-DD")
+    lessons = await get_lessons(student_id=student_id)
+    if not lessons:
+        await callback.message.answer('У ученика нет уроков')
+        await callback.answer()
+        return
+    data = await state.update_data({'lessons': lessons})
 
-    await state.set_state('waiting_for_old_date_lesson')
+    kb = create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='choose_lesson_to_change')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer("Выберите урок, дату которого хотите изменить:")
+
+
+@teacher_router.callback_query(F.data.startswith('choose_lesson_to_change_page:'))
+async def choose_lesson_to_change_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer("Недостаточно прав!", show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    lessons = data.get('lessons')
+    if not lessons:
+        await callback.message.answer('У ученика нет уроков')
+        await callback.answer()
+        return
+    kb = create_lessons_inline_kb(lessons, page=page, page_size=5, prefix='choose_lesson_to_change')
+    await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
+@teacher_router.callback_query(F.data.startswith('choose_lesson_to_change:'))
+async def choose_lesson_to_change_page(callback: CallbackQuery, state: FSMContext):
 
-@teacher_router.message(F.text, StateFilter('waiting_for_old_date_lesson'))
-async def process_old_lesson_data(message: Message, state: FSMContext):
-    old_date = message.text.strip()
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer("Недостаточно прав!", show_alert=True)
+        return
 
-    await state.update_data({'old_date': old_date})
-    await  message.answer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
+    _, lesson_str = callback.data.split(':')
+    lesson_id = int(lesson_str)
 
-    await state.set_state('waiting_for_new_date_lesson')
-    await message.answer()
+    await state.update_data({'lesson_id': lesson_id})
+    await callback.message.answer("Введите новую дату для урока (формат: YYYY-MM-DD):")
+    await state.set_state('waiting_for_change_lesson')
+    await callback.answer()
 
-@teacher_router.message(F.text, StateFilter('waiting_for_new_date_lesson'))
-async def process_new_lesson_data(message: Message, state: FSMContext):
+@teacher_router.message(F.text, StateFilter('waiting_for_change_lesson'))
+async def process_change_lesson(message: Message, state: FSMContext):
     data = await state.get_data()
+    lesson_id = data.get('lesson_id')
+    new_date_str = message.text.strip()
 
-    student_id = data['student_id']
-    old_date = data['old_date']
-    new_date = message.text.strip()
-
-    success = await change_lesson(student_id, old_date, new_date)
+    success = await change_lesson(lesson_id, new_date_str)
     if success:
-        await message.answer(f"Изменен урок для ученика {student_id}:\n"
-                             f"Дата изменена с {old_date} на {new_date}", reply_markup=cmd_start)
-
+        await message.answer(f"Дата изменена с {new_date_str}", reply_markup=cmd_start)
     else:
         await message.answer('Ошибка при изменении урока')
 

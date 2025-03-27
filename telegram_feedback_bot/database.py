@@ -142,30 +142,24 @@ async def delete_lesson(student_id: int, lesson_date: date):
         logging.warning(f'Не получилось удалить занятие ученика {student_id} от {lesson_date}')
 
 
-async def change_lesson(student_id: int, old_date_str: str, new_date_str: str):
+async def change_lesson(lesson_id: int,  new_date_str: str):
     try:
         new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
     except ValueError:
         logging.info(f'Некорректный формат даты: {new_date_str}')
         return False
-    try:
-        old_date = datetime.strptime(old_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        logging.info(f'Некорректный формат даты: {old_date_str}')
-        return False
 
     async with AsyncSessionLocal() as session:
-        query = select(Lesson).where(Lesson.student_id == student_id,
-                                     Lesson.date == old_date)
+        query = select(Lesson).where(Lesson.id == lesson_id,)
         result = await session.execute(query)
         lesson = result.scalar_one_or_none()
 
         if not lesson:
-            logging.warning(f"Урок для ученика не найден")
+            logging.warning(f"Урок  не найден")
             return False
         lesson.date = new_date
         await session.commit()
-        logging.info(f'Дата занятия обновлена: {old_date_str} на {new_date_str} у ученика {student_id}')
+        logging.info(f'Дата занятия обновлена на {new_date_str}.')
         return True
 
 
