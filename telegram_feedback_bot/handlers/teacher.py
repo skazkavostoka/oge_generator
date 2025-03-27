@@ -629,30 +629,30 @@ async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@teacher_router.callback_query(F.text, StateFilter('waiting_for_old_lesson_data'))
-async def process_old_lesson_data(callback: CallbackQuery, state: FSMContext):
-    old_date = callback.text.strip()
+@teacher_router.message(F.text, StateFilter('waiting_for_old_lesson_data'))
+async def process_old_lesson_data(message: Message, state: FSMContext):
+    old_date = message.text.strip()
 
     await state.update_data({'old_date': old_date})
-    await callback.asnwer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
+    await  message.asnwer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
 
     await state.set_state('waiting_for_new_lesson_data')
-    await callback.answer()
+    await message.answer()
 
-@teacher_router.callback_query(F.text, StateFilter('waiting_for_old_lesson_data'))
-async def process_new_lesson_data(callback: CallbackQuery, state: FSMContext):
+@teacher_router.message(F.text, StateFilter('waiting_for_old_lesson_data'))
+async def process_new_lesson_data(message: Message, state: FSMContext):
     data = await state.get_data()
 
     student_id = data['student_id']
     old_date = data['old_date']
-    new_date = callback.text.strip()
+    new_date = message.text.strip()
 
     success = await change_lesson(student_id, old_date, new_date)
     if success:
-        await callback.answer(f"Изменен урок для ученика {student_id}:\n"
+        await message.answer(f"Изменен урок для ученика {student_id}:\n"
                              f"Дата изменена с {old_date} на {new_date}", reply_markup=cmd_start)
 
     else:
-        await callback.answer('Ошибка при изменении урока')
+        await message.answer('Ошибка при изменении урока')
 
     await state.clear()
