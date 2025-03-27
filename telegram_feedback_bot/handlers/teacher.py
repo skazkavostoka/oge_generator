@@ -11,8 +11,6 @@ from database import *
 
 import os
 
-from oge_generator.telegram_feedback_bot.keyboards.reply import cmd_start
-
 teacher_router = Router()
 
 
