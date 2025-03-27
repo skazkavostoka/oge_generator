@@ -1,9 +1,7 @@
 import logging
 import os
 
-from openpyxl.reader.excel import load_workbook
-from openpyxl.styles import NamedStyle
-from sqlalchemy.dialects.mssql.information_schema import columns
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -12,7 +10,7 @@ from config import DATABASE_URL
 
 from models import Base, User, ParentChild, Lesson
 
-from datetime import date
+from datetime import date, datetime
 import pandas as pd
 import openpyxl
 
@@ -31,10 +29,12 @@ async def add_user(telegram_id: int, full_name: str, role: str):
         session.add(new_user)
         await session.commit()
 
+
 async def get_user(telegram_id: int):
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         return result.scalars().first()
+
 
 async def set_user_role(telegram_id: int, new_role: str):
     async with AsyncSessionLocal() as session:
@@ -140,6 +140,34 @@ async def delete_lesson(student_id: int, lesson_date: date):
             return True
 
         logging.warning(f'Не получилось удалить занятие ученика {student_id} от {lesson_date}')
+
+
+async def change_lesson(student_id: int, old_date_str: str, new_date_str: str):
+    try:
+        new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        logging.info(f'Некорректный формат даты: {new_date_str}')
+        return False
+    try:
+        old_date = datetime.strptime(old_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        logging.info(f'Некорректный формат даты: {old_date_str}')
+        return False
+
+    async with AsyncSessionLocal() as session:
+        query = select(Lesson).where(Lesson.student_id == student_id,
+                                     Lesson.date == old_date)
+        result = await session.execute(query)
+        lesson = result.scalar_one_or_none()
+
+        if not lesson:
+            logging.warning(f"Урок для ученика не найден")
+            return False
+        lesson.date = new_date
+        await session.commit()
+        logging.info(f'Дата занятия обновлена: {old_date_str} на {new_date_str} у ученика {student_id}')
+        return True
+
 
 
 async def export_lessons_to_excel(student_id: int):

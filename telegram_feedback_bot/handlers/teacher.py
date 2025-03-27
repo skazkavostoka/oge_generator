@@ -8,7 +8,7 @@ from database import *
 from keyboards.reply import *
 from keyboards.inline import create_students_inline_kb
 from database import add_parent_child, remove_parent_child, get_user, get_all_users, get_all_students, get_all_parents
-from database import show_child_parents, get_children_to_parent, export_lessons_to_excel
+from database import show_child_parents, get_children_to_parent, export_lessons_to_excel, change_lesson
 
 import os
 
@@ -366,7 +366,7 @@ async def process_student_page(callback: CallbackQuery, state: FSMContext):
     students = data.get('students', [])
 
     kb = create_students_inline_kb(students, page=page, prefix='student_lessons')
-    await callback.message.edit_reply_markup(kb)
+    await callback.message.edit_reply_markup(reply_markup=kb)
     await callback.answer()
 
 @teacher_router.callback_query(F.data.startswith('student_lessons:'))
@@ -452,7 +452,7 @@ async def process_new_lesson_data(message: Message, state: FSMContext):
     data = await state.get_data()
     student_id = data['student_id']
 
-    parts = message.text.split(',')
+    parts = message.text.split(';')
     hw_res = parts[0].strip() if len(parts) > 0 else '-'
     cw_res = parts[1].strip() if len(parts) > 1 else '-'
     test_res = parts[2].strip() if len(parts) > 2 else '-'
@@ -577,4 +577,82 @@ async def export_lessons(callback: CallbackQuery, state: FSMContext):
         os.remove(success)
     else:
         await callback.message.answer('Данных о занятиях пока нет', reply_markup=cmd_start)
+    await state.clear()
+
+@teacher_router.message(F.text == 'Изменить урок')
+async def change_lesson(message: types.Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer('Недостаточно прав', show_alert=True)
+        return
+
+    students = await get_all_students()
+    if not students:
+        await message.answer('Нет учеников или что-то не так с программой', reply_markup=cmd_start)
+        return
+
+    await state.update_data({'students': students})
+    kb = create_students_inline_kb(students, prefix='change_lesson')
+    await message.answer('Выберите студента, у которого необходимо изменить урок', reply_markup=kb)
+
+
+@teacher_router.callback_query(F.data.startswith('change_lesson_page:'))
+async def change_lesson_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    students = data.get('students', [])
+    kb = create_students_inline_kb(students, page=page, prefix='change_lesson')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@teacher_router.callback_query(F.data.startswith('change_lesson:'))
+async def change_lesson_date(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, student_id_str = callback.data.split(':')
+    student_id = int(student_id_str)
+
+    await state.update_data({'student_id': student_id})
+    await callback.message.answer("Введите дату занятия, которое хотите изменить в формате YYYY-MM-DD")
+
+    await state.set_state('waiting_for_old_lesson_data')
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.text, StateFilter('waiting_for_old_lesson_data'))
+async def process_old_lesson_data(callback: CallbackQuery, state: FSMContext):
+    old_date = callback.text.strip()
+
+    await state.update_data({'old_date': old_date})
+    await callback.asnwer('Введите новую дату для этого занятия в формате YYYY-MM-DD')
+
+    await state.set_state('waiting_for_new_lesson_data')
+    await callback.answer()
+
+@teacher_router.callback_query(F.text, StateFilter('waiting_for_old_lesson_data'))
+async def process_new_lesson_data(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+
+    student_id = data['student_id']
+    old_date = data['old_date']
+    new_date = callback.text.strip()
+
+    success = await change_lesson(student_id, old_date, new_date)
+    if success:
+        await callback.answer(f"Изменен урок для ученика {student_id}:\n"
+                             f"Дата изменена с {old_date} на {new_date}", reply_markup=cmd_start)
+
+    else:
+        await callback.answer('Ошибка при изменении урока')
+
     await state.clear()
