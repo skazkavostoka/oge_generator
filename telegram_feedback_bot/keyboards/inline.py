@@ -55,7 +55,7 @@ def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='student_lesso
     """
     start_index = (page - 1) * page_size
     end_index = start_index + page_size
-    chunk = students[start_index:end_index]
+    chunk = lessons[start_index:end_index]
 
     # Каждая строка — это список InlineKeyboardButton
     keyboard_rows = []
