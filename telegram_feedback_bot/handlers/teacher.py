@@ -351,7 +351,7 @@ async def show_results_handler(message: Message, state: FSMContext):
     await message.answer('Выберите учеников', reply_markup=kb)
 
 
-@teacher_router.callback_query(F.data.startswith('students_lessons_page:'))
+@teacher_router.callback_query(F.data.startswith('student_lessons_page:'))
 async def process_student_page(callback: CallbackQuery, state: FSMContext):
     user = await get_user(callback.from_user.id)
     if not user or user.role != 'учитель':
