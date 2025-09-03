@@ -11,6 +11,8 @@ from database import *
 
 import os
 
+from oge_generator.telegram_feedback_bot.database import get_user, get_all_students
+
 teacher_router = Router()
 
 
@@ -771,4 +773,112 @@ async def choose_lesson_to_delete(callback: CallbackQuery, state: FSMContext):
     else:
         await callback.message.answer('Ошибка при удалении урока', reply_markup=cmd_start)
 
+    await state.clear()
+
+
+
+@teacher_router.message(F.text == 'Удалить пользователя')
+async def delete_user(message: types.Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user or user.role != 'учитель':
+        await message.answer('Недостаточно прав', show_alert=True)
+        return
+
+    users = await get_all_users()
+    if not users:
+        await message.answer('Нет пользователей или что-то не так с программой', reply_markup=cmd_start)
+        return
+
+    await state.update_data({'users': users})
+    kb = create_students_inline_kb(users, prefix='delete_user')
+    await message.answer('Выберите пользователя, которого необходимо удалить', reply_markup=kb)
+
+@teacher_router.callback_query(F.data.startswith('delete_user_page:'))
+async def delete_user_page(callback: CallbackQuery, state: FSMContext):
+    user = await get_user(callback.from_user.id)
+    if not user or user.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, page_str = callback.data.split(':')
+    page = int(page_str)
+
+    data = await state.get_data()
+    users = data.get('users', [])
+    kb = create_students_inline_kb(users, page=page, prefix='delete_user')
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('delete_user:'))
+async def delete_user_choose(callback: CallbackQuery, state: FSMContext):
+    # Пользователь выбрал конкретного пользователя для удаления — просим подтверждение
+    teacher = await get_user(callback.from_user.id)
+    if not teacher or teacher.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, target_id_str = callback.data.split(':', 1)
+    target_id = int(target_id_str)
+
+    # Сохраним выбор в state
+    await state.update_data({'target_user_id': target_id})
+
+    # Найдём объект пользователя для отображения в тексте (по необходимости)
+    # Можно получить его из state 'users' списка:
+    data = await state.get_data()
+    users = data.get('users', [])
+    # попытка найти объект User в списке (если get_all_users возвращал ORM объекты)
+    target_user = None
+    for u in users:
+        # поле может быть telegram_id или id — у тебя используется telegram_id в других местах
+        if getattr(u, 'telegram_id', None) == target_id or getattr(u, 'id', None) == target_id:
+            target_user = u
+            break
+
+    name = target_user.full_name if target_user and getattr(target_user, 'full_name', None) else str(target_id)
+
+    # Подтверждающая клавиатура
+    confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='✅ Да, удалить', callback_data=f'confirm_delete:{target_id}')],
+        [InlineKeyboardButton(text='❌ Отменить', callback_data='cancel_delete')]
+    ])
+
+    await callback.message.answer(f'Вы уверены, что хотите удалить пользователя {name} (id: {target_id})?', reply_markup=confirm_kb)
+    await callback.answer()
+
+
+@teacher_router.callback_query(F.data.startswith('confirm_delete:'))
+async def delete_user_confirm(callback: CallbackQuery, state: FSMContext):
+    teacher = await get_user(callback.from_user.id)
+    if not teacher or teacher.role != 'учитель':
+        await callback.answer('Недостаточно прав', show_alert=True)
+        return
+
+    _, target_id_str = callback.data.split(':', 1)
+    target_id = int(target_id_str)
+
+    # Защита от удаления учителей (чтобы не удалить коллегу/себя случайно)
+    target_user = await get_user(target_id)
+    if target_user and getattr(target_user, 'role', None) == 'учитель':
+        await callback.message.answer('Нельзя удалять пользователей с ролью "учитель".', reply_markup=cmd_start)
+        await callback.answer()
+        await state.clear()
+        return
+
+    # Удаляем
+    success = await del_user(target_id)
+    if success:
+        await callback.message.answer(f'Пользователь {target_id} успешно удалён.', reply_markup=cmd_start)
+    else:
+        await callback.message.answer('Не удалось удалить пользователя. Возможно он уже отсутствует.', reply_markup=cmd_start)
+
+    await callback.answer()
+    await state.clear()
+
+
+@teacher_router.callback_query(F.data == 'cancel_delete')
+async def delete_user_cancel(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer('Удаление отменено.', reply_markup=cmd_start)
+    await callback.answer()
     await state.clear()

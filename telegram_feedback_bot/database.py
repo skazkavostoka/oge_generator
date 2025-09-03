@@ -2,6 +2,7 @@ import logging
 import os
 
 
+from sqlalchemy import delete, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -34,6 +35,60 @@ async def get_user(telegram_id: int):
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         return result.scalars().first()
+
+async def del_user(telegram_id: int) -> bool:
+    async def del_user_by_telegram(telegram_id: int) -> bool:
+        """
+        Удаляет пользователя (по telegram_id) и связанные с ним записи:
+          - уроки (Lesson.student_id == user.id)
+          - связи ParentChild (parent_id/child_id равны telegram_id или user.id)
+        Возвращает True при успехе, False при ошибке / если пользователь не найден.
+        """
+        async with AsyncSessionLocal() as session:
+            q = select(User).where(User.telegram_id == telegram_id)
+            res = await session.execute(q)
+            user = res.scalar_one_or_none()
+
+            if not user:
+                logging.warning(f'Попытка удалить несуществующего пользователя, telegram_id={telegram_id}')
+                return False
+
+            user_pk = getattr(user, "id", None)
+            user_tg = getattr(user, "telegram_id", None)
+
+            try:
+                # начинаем транзакцию, чтобы все удаления совершились атомарно
+                async with session.begin():
+                    # Удаляем уроки по PK пользователя (Lesson.student_id ссылается на users.id)
+                    if user_pk is not None:
+                        await session.execute(
+                            delete(Lesson).where(Lesson.student_id == user_pk)
+                        )
+
+                    # Удаляем parent-child связи — проверяем и telegram_id, и PK (на всякий случай)
+                    await session.execute(
+                        delete(ParentChild).where(
+                            or_(
+                                ParentChild.parent_id == user_tg,
+                                ParentChild.child_id == user_tg,
+                                ParentChild.parent_id == user_pk,
+                                ParentChild.child_id == user_pk,
+                            )
+                        )
+                    )
+
+                    # Удаляем самого пользователя
+                    session.delete(user)
+
+                logging.info(
+                    f'Удален пользователь {user.full_name or user_tg} (telegram_id={user_tg}) и связанные записи')
+                return True
+
+            except Exception as e:
+                # при использовании session.begin() rollback произойдёт автоматически,
+                # но на всякий случай логируем
+                logging.exception(f'Ошибка при удалении пользователя {telegram_id}: {e}')
+                return False
 
 
 async def set_user_role(telegram_id: int, new_role: str):
@@ -105,13 +160,15 @@ async def add_lesson(student_id: int,
         )
         session.add(new_lesson)
 
+        student_name = select(User.full_name).where(User.telegram_id == student_id)
+
         try:
             await session.commit()
-            logging.info(f'Добавлено занятие {new_lesson}')
+            logging.info(f'Добавлено занятие {new_lesson} для ученика {student_name}, id: {student_id}')
             return True
         except IntegrityError:
             await session.rollback()
-            logging.warning(f'Ошибка при добавлении занятия для ученика {student_id}')
+            logging.warning(f'Ошибка при добавлении занятия для ученика {student_name}, id: {student_id}')
             return False
 
 async def get_lessons(student_id: int = None):
@@ -212,17 +269,6 @@ async def export_lessons_to_excel(student_id: int):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         df.to_excel(filepath, index=False, engine='openpyxl')
-        # wb = load_workbook(filepath)
-        # ws = wb.active
-        #
-        # text_style = NamedStyle(name="text_style")
-        # text_style.number_format = '@'
-        #
-        # for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-        #     for cell in row:
-        #         cell.style = text_style
-        #
-        # wb.save(filepath)
 
         return filepath
 
