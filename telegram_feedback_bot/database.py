@@ -36,59 +36,92 @@ async def get_user(telegram_id: int):
         result = await session.execute(select(User).where(User.telegram_id == telegram_id))
         return result.scalars().first()
 
+
 async def del_user(telegram_id: int) -> bool:
-    """
-    Удаляет пользователя (по telegram_id) и связанные с ним записи:
-      - уроки (Lesson.student_id == user.id)
-      - связи ParentChild (parent_id/child_id равны telegram_id или user.id)
-    Возвращает True при успехе, False при ошибке / если пользователь не найден.
-    """
+    # """
+    # Удаляет пользователя (по telegram_id) и связанные с ним записи:
+    #   - уроки (Lesson.student_id == user.id)
+    #   - связи ParentChild (parent_id/child_id равны telegram_id или user.id)
+    # Возвращает True при успехе, False при ошибке / если пользователь не найден.
+    # """
+    # async with AsyncSessionLocal() as session:
+    #     q = select(User).where(User.telegram_id == telegram_id)
+    #     res = await session.execute(q)
+    #     user = res.scalar_one_or_none()
+    #
+    #     if not user:
+    #         logging.warning(f'Попытка удалить несуществующего пользователя, telegram_id={telegram_id}')
+    #         return False
+    #
+    #     user_pk = getattr(user, "id", None)
+    #     user_tg = getattr(user, "telegram_id", None)
+    #
+    #     try:
+    #         # начинаем транзакцию, чтобы все удаления совершились атомарно
+    #         async with session.begin():
+    #             # Удаляем уроки по PK пользователя (Lesson.student_id ссылается на users.id)
+    #             if user_pk is not None:
+    #                 await session.execute(
+    #                     delete(Lesson).where(Lesson.student_id == user_pk)
+    #                 )
+    #
+    #             # Удаляем parent-child связи — проверяем и telegram_id, и PK (на всякий случай)
+    #             await session.execute(
+    #                 delete(ParentChild).where(
+    #                     or_(
+    #                         ParentChild.parent_id == user_tg,
+    #                         ParentChild.child_id == user_tg,
+    #                         ParentChild.parent_id == user_pk,
+    #                         ParentChild.child_id == user_pk,
+    #                     )
+    #                 )
+    #             )
+    #
+    #             # Удаляем самого пользователя
+    #             session.delete(user)
+    #
+    #         logging.info(
+    #             f'Удален пользователь {user.full_name or user_tg} (telegram_id={user_tg}) и связанные записи')
+    #         return True
+    #
+    #     except Exception as e:
+    #         # при использовании session.begin() rollback произойдёт автоматически,
+    #         # но на всякий случай логируем
+    #         logging.exception(f'Ошибка при удалении пользователя {telegram_id}: {e}')
+    #         return False
     async with AsyncSessionLocal() as session:
         q = select(User).where(User.telegram_id == telegram_id)
         res = await session.execute(q)
         user = res.scalar_one_or_none()
 
         if not user:
-            logging.warning(f'Попытка удалить несуществующего пользователя, telegram_id={telegram_id}')
-            return False
+            # логируем список рядом лежащих telegram_id для отладки
+            q2 = select(User.telegram_id, User.id, User.full_name).limit(20)
+            nearby = await session.execute(q2)
+            rows = nearby.all()
+            logging.warning(f'User not found by telegram_id={telegram_id}. Nearby rows: {rows}')
+            return False, "user_not_found"
 
-        user_pk = getattr(user, "id", None)
-        user_tg = getattr(user, "telegram_id", None)
-
+        logging.info(f'Found user: id={user.id} telegram_id={user.telegram_id} name={user.full_name}')
+        # далее — как ранее, но с подробным логом
         try:
-            # начинаем транзакцию, чтобы все удаления совершились атомарно
             async with session.begin():
-                # Удаляем уроки по PK пользователя (Lesson.student_id ссылается на users.id)
-                if user_pk is not None:
-                    await session.execute(
-                        delete(Lesson).where(Lesson.student_id == user_pk)
+                if user.id is not None:
+                    await session.execute(delete(Lesson).where(Lesson.student_id == user.id))
+                await session.execute(delete(ParentChild).where(
+                    or_(
+                        ParentChild.parent_id == user.telegram_id,
+                        ParentChild.child_id == user.telegram_id,
+                        ParentChild.parent_id == user.id,
+                        ParentChild.child_id == user.id,
                     )
-
-                # Удаляем parent-child связи — проверяем и telegram_id, и PK (на всякий случай)
-                await session.execute(
-                    delete(ParentChild).where(
-                        or_(
-                            ParentChild.parent_id == user_tg,
-                            ParentChild.child_id == user_tg,
-                            ParentChild.parent_id == user_pk,
-                            ParentChild.child_id == user_pk,
-                        )
-                    )
-                )
-
-                # Удаляем самого пользователя
+                ))
                 session.delete(user)
-
-            logging.info(
-                f'Удален пользователь {user.full_name or user_tg} (telegram_id={user_tg}) и связанные записи')
-            return True
-
+            logging.info(f"Deleted user {user.full_name} (tg={user.telegram_id}) and related records")
+            return True, "deleted"
         except Exception as e:
-            # при использовании session.begin() rollback произойдёт автоматически,
-            # но на всякий случай логируем
-            logging.exception(f'Ошибка при удалении пользователя {telegram_id}: {e}')
-            return False
-
+            logging.exception("Error while deleting user")
+            return False, f"exception:{e}"
 
 async def set_user_role(telegram_id: int, new_role: str):
     async with AsyncSessionLocal() as session:
