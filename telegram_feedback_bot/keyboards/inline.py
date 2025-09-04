@@ -77,3 +77,9 @@ def create_lessons_inline_kb(lessons, page=1, page_size=5, prefix='choose_lesson
         keyboard_rows.append(nav_buttons)
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
+
+
+confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✅ Да, удалить', callback_data=f'confirm_delete:{target_id}')],
+    [InlineKeyboardButton(text='❌ Отменить', callback_data='cancel_delete')]
+])
