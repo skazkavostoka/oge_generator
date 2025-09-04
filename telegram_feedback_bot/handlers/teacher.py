@@ -11,7 +11,7 @@ from database import *
 
 import os
 
-from oge_generator.telegram_feedback_bot.database import get_user, get_all_students
+from database import get_user, get_all_students
 
 teacher_router = Router()
 
