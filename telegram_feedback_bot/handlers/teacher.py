@@ -12,8 +12,6 @@ from database import *
 
 import os
 
-from database import get_user, get_all_students, del_user
-
 teacher_router = Router()
 
 
