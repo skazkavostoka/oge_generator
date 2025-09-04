@@ -1,12 +1,13 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from aiogram.filters import Command, or_f, StateFilter
 
 from database import *
 from keyboards.reply import *
-from keyboards.inline import create_students_inline_kb, create_lessons_inline_kb, confirm_kb
+from keyboards.inline import create_students_inline_kb, create_lessons_inline_kb
 from database import *
 
 import os
@@ -839,7 +840,10 @@ async def delete_user_choose(callback: CallbackQuery, state: FSMContext):
     name = target_user.full_name if target_user and getattr(target_user, 'full_name', None) else str(target_id)
 
     # Подтверждающая клавиатура
-    confirm_kb = confirm_kb
+    confirm_kb = confirm_kb = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text='✅ Да, удалить', callback_data=f'confirm_delete:{target_id}')],
+    [InlineKeyboardButton(text='❌ Отменить', callback_data='cancel_delete')]
+])
 
     await callback.message.answer(f'Вы уверены, что хотите удалить пользователя {name} (id: {target_id})?', reply_markup=confirm_kb)
     await callback.answer()
