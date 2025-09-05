@@ -38,81 +38,26 @@ async def get_user(telegram_id: int):
 
 
 async def del_user(telegram_id: int) -> bool:
-    # """
-    # Удаляет пользователя (по telegram_id) и связанные с ним записи:
-    #   - уроки (Lesson.student_id == user.id)
-    #   - связи ParentChild (parent_id/child_id равны telegram_id или user.id)
-    # Возвращает True при успехе, False при ошибке / если пользователь не найден.
-    # """
-    # async with AsyncSessionLocal() as session:
-    #     q = select(User).where(User.telegram_id == telegram_id)
-    #     res = await session.execute(q)
-    #     user = res.scalar_one_or_none()
-    #
-    #     if not user:
-    #         logging.warning(f'Попытка удалить несуществующего пользователя, telegram_id={telegram_id}')
-    #         return False
-    #
-    #     user_pk = getattr(user, "id", None)
-    #     user_tg = getattr(user, "telegram_id", None)
-    #
-    #     try:
-    #         # начинаем транзакцию, чтобы все удаления совершились атомарно
-    #         async with session.begin():
-    #             # Удаляем уроки по PK пользователя (Lesson.student_id ссылается на users.id)
-    #             if user_pk is not None:
-    #                 await session.execute(
-    #                     delete(Lesson).where(Lesson.student_id == user_pk)
-    #                 )
-    #
-    #             # Удаляем parent-child связи — проверяем и telegram_id, и PK (на всякий случай)
-    #             await session.execute(
-    #                 delete(ParentChild).where(
-    #                     or_(
-    #                         ParentChild.parent_id == user_tg,
-    #                         ParentChild.child_id == user_tg,
-    #                         ParentChild.parent_id == user_pk,
-    #                         ParentChild.child_id == user_pk,
-    #                     )
-    #                 )
-    #             )
-    #
-    #             # Удаляем самого пользователя
-    #             session.delete(user)
-    #
-    #         logging.info(
-    #             f'Удален пользователь {user.full_name or user_tg} (telegram_id={user_tg}) и связанные записи')
-    #         return True
-    #
-    #     except Exception as e:
-    #         # при использовании session.begin() rollback произойдёт автоматически,
-    #         # но на всякий случай логируем
-    #         logging.exception(f'Ошибка при удалении пользователя {telegram_id}: {e}')
-    #         return False
-    async with AsyncSessionLocal() as session:
-        q = select(User).where(User.telegram_id == telegram_id)
-        res = await session.execute(q)
-        user = res.scalar_one_or_none()
-
-        if not user:
-            logging.warning(f"del_user_by_telegram: user not found telegram_id={telegram_id}")
-            return False
-
-        user_pk = user.id
-        user_tg = user.telegram_id
-        user_name = user.full_name
-
-        try:
-            # В рамках транзакции удаляем связанные записи и самого пользователя
+    async def del_user(telegram_id: int) -> bool:
+        async with AsyncSessionLocal() as session:
             async with session.begin():
-                # Удаляем уроки, у которых student_id == PK (или — на всякий случай — telegram_id)
+                q = select(User).where(User.telegram_id == telegram_id)
+                res = await session.execute(q)
+                user = res.scalar_one_or_none()
+                if not user:
+                    logging.warning(f"del_user: user not found tg={telegram_id}")
+                    return False
+
+                user_pk = user.id
+                user_tg = user.telegram_id
+
+                # удаляем уроки
                 await session.execute(
                     delete(Lesson).where(
                         or_(Lesson.student_id == user_pk, Lesson.student_id == user_tg)
                     )
                 )
-
-                # Удаляем связи ParentChild по parent/child, учитывая и PK и telegram_id
+                # удаляем связи
                 await session.execute(
                     delete(ParentChild).where(
                         or_(
@@ -123,17 +68,11 @@ async def del_user(telegram_id: int) -> bool:
                         )
                     )
                 )
-
-                # Наконец удаляем сам объект User
+                # удаляем сам объект
                 await session.delete(user)
 
-            logging.info(f"Deleted user {user_name or user_tg} (tg={user_tg}) and related rows")
-            return True
-
-        except Exception:
-            await session.rollback()
-            logging.exception(f"Error deleting user telegram_id={telegram_id}")
-            return False
+        logging.info(f"Deleted user tg={telegram_id}")
+        return True
 
 async def set_user_role(telegram_id: int, new_role: str):
     async with AsyncSessionLocal() as session:
