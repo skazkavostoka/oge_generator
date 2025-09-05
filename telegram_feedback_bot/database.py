@@ -38,41 +38,40 @@ async def get_user(telegram_id: int):
 
 
 async def del_user(telegram_id: int) -> bool:
-    async def del_user(telegram_id: int) -> bool:
-        async with AsyncSessionLocal() as session:
-            async with session.begin():
-                q = select(User).where(User.telegram_id == telegram_id)
-                res = await session.execute(q)
-                user = res.scalar_one_or_none()
-                if not user:
-                    logging.warning(f"del_user: user not found tg={telegram_id}")
-                    return False
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            q = select(User).where(User.telegram_id == telegram_id)
+            res = await session.execute(q)
+            user = res.scalar_one_or_none()
+            if not user:
+                logging.warning(f"del_user: user not found tg={telegram_id}")
+                return False
 
-                user_pk = user.id
-                user_tg = user.telegram_id
+            user_pk = user.id
+            user_tg = user.telegram_id
 
-                # удаляем уроки
-                await session.execute(
-                    delete(Lesson).where(
-                        or_(Lesson.student_id == user_pk, Lesson.student_id == user_tg)
+            # удаляем уроки
+            await session.execute(
+                delete(Lesson).where(
+                    or_(Lesson.student_id == user_pk, Lesson.student_id == user_tg)
+                )
+            )
+            # удаляем связи
+            await session.execute(
+                delete(ParentChild).where(
+                    or_(
+                        ParentChild.parent_id == user_pk,
+                        ParentChild.parent_id == user_tg,
+                        ParentChild.child_id == user_pk,
+                        ParentChild.child_id == user_tg,
                     )
                 )
-                # удаляем связи
-                await session.execute(
-                    delete(ParentChild).where(
-                        or_(
-                            ParentChild.parent_id == user_pk,
-                            ParentChild.parent_id == user_tg,
-                            ParentChild.child_id == user_pk,
-                            ParentChild.child_id == user_tg,
-                        )
-                    )
-                )
-                # удаляем сам объект
-                await session.delete(user)
+            )
+            # удаляем сам объект
+            await session.delete(user)
 
-        logging.info(f"Deleted user tg={telegram_id}")
-        return True
+    logging.info(f"Deleted user tg={telegram_id}")
+    return True
 
 async def set_user_role(telegram_id: int, new_role: str):
     async with AsyncSessionLocal() as session:
